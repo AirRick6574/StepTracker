@@ -1,0 +1,11 @@
+# This is a comment and will be ignored by the client.
+#/run print((select(4, GetBuildInfo())));
+#Toc must be same name as folder name
+## Interface: 11507
+##Title: HelloWorld
+## Notes: Shows a message of "Hello World" on screen.
+##Author: ErickRuiz
+##Version: 0.0.1
+
+#Runs HelloWorld.Lua file first.
+HelloWorld.lua
