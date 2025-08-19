@@ -2,10 +2,12 @@
 #/run print((select(4, GetBuildInfo())));
 #Toc must be same name as folder name
 ## Interface: 11507
-##Title: HelloWorld
-## Notes: Shows a message of "Hello World" on screen.
+##Title: Step Tracker
+## Notes: Will Calculate Steps Charcater has walked. Will display steps onto display 
 ##Author: ErickRuiz
 ##Version: 0.0.1
+## SavedVariables: MyAddonData
 
-#Runs HelloWorld.Lua file first.
-HelloWorld.lua
+#Runs StepTracker.lua file first.
+StepTracker.lua
+
