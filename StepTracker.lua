@@ -20,7 +20,7 @@
 local StepTracker = {
     unitsPerStepWalking = 0.840456,
     unitsPerStepRunningBackwards = 1.365441,
-    unitsPerStepRunningForward = 2.679353, --wow character takes big steps
+    unitsPerStepRunningForward = 2.779353, --wow character takes big steps
     newPosX = 0,
     newPosY = 0,
     oldPosX = 0,
@@ -28,7 +28,8 @@ local StepTracker = {
     totalDistance = 0,
     stepsCurrently = 0,
     stepsTotal = 0,
-    currentDistance = 0
+    currentDistance = 0,
+    isNoChange = false
 }
 
 --REMEMBER FOR THE SYSTEM TO FIND THE COMMAND LINE, YOU HAVE TO BIND IT TO ITS VARIABLE NAME, NOT ITS VALUE
@@ -36,6 +37,7 @@ SLASH_POS1 = "/getPOS" --command name
 SLASH_DISPLAYPOS1 = "/getDistance" --command name 
 SLASH_DISPLAYSTEPS1 = "/getSteps"
 SLASH_CALIBRATE1 = "/calibrate40" --command name 
+SLASH_CALCULATE1 = "/calculate" --command name 
 
 --Local Function to collect current Pos
 local function getCurrentPos()
@@ -51,11 +53,11 @@ local function updatePOS()
     StepTracker.newPosX, StepTracker.newPosY = getCurrentPos()
 end
 
+--[[
 local function printCurrentAndOldPos()
     updatePOS()
-    print("POSITION: " .. StepTracker.newPosX .. ", " .. StepTracker.newPosY)
-    print("old POSITION: " .. StepTracker.oldPosX .. ", " .. StepTracker.oldPosY)
 end 
+]]
 
 --Local function to determine distance 
 local function determineDistance()
@@ -65,14 +67,36 @@ local function determineDistance()
 
     --Determine Distance from old pos to new pos using Euclidean Distance
     StepTracker.currentDistance = math.sqrt((xPosDifference^2) + (yPosDifference^2))
-    print("distance" .. StepTracker.currentDistance)
 end
 
 local function determineSteps()
     StepTracker.stepsCurrently = StepTracker.currentDistance / StepTracker.unitsPerStepRunningForward
-    print("Steps in distance: " .. math.floor(StepTracker.stepsCurrently)) --rounds dowm
+    StepTracker.stepsTotal = StepTracker.stepsTotal + StepTracker.stepsCurrently 
+end
 
-    StepTracker.stepsTotal = StepTracker.stepsTotal + StepTracker.stepsCurrently
+--call other methods to get steps and output 
+local function calculateSteps()
+    getCurrentPos()
+    updatePOS()
+    determineDistance()
+    determineSteps()
+    if StepTracker.stepsCurrently == 0 then
+        StepTracker.isNoChange = true
+    else
+        StepTracker.isNoChange = false
+    end
+end
+
+local function printSteps()
+    calculateSteps()
+
+    print("POSITION: " .. StepTracker.newPosX .. ", " .. StepTracker.newPosY)
+    print("old POSITION: " .. StepTracker.oldPosX .. ", " .. StepTracker.oldPosY)
+    print("distance" .. StepTracker.currentDistance)
+
+    print()
+
+    print("Steps in distance: " .. math.floor(StepTracker.stepsCurrently)) --rounds dowm
     print("TotalSteps in Session: " .. math.floor(StepTracker.stepsTotal)) --rounds dowm
 end
 
@@ -114,27 +138,81 @@ local function calibrate40()
 end
 
 
-
-
-SlashCmdList["POS"] = printCurrentAndOldPos
+SlashCmdList["POS"] = updatePOS
 SlashCmdList["DISPLAYPOS"] = determineDistance
 SlashCmdList["DISPLAYSTEPS"] = determineSteps
 SlashCmdList["CALIBRATE"] = calibrate40
-
-
+SlashCmdList["CALCULATE"] = printSteps
 
 --diplays Hello PlayerName 
 --will not run until character is spawned in and program is intilized
-local f = CreateFrame("Frame")
-f:RegisterEvent("PLAYER_ENTERING_WORLD")
 
-f:SetScript("OnEvent", function(self, event, ...)
+-- Frames, in the context of World of Warcraft addon development, are essentially structures 
+--(if you're all that familiar with Lua, they are custom tables) which allow for the detection 
+--of certain game events and the creation of windows and a bunch of other cool stuff.
+local f = CreateFrame("Frame")
+f:RegisterEvent("PLAYER_ENTERING_WORLD") --tells frame to watch for event (event is player entering world)
+
+f:SetScript("OnEvent", function(self, event, ...) --similar to contents in functions, will run script once event has passed
     if event == "PLAYER_ENTERING_WORLD" then
-        printCurrentAndOldPos()
+        updatePOS()
         StepTracker.oldPosX = StepTracker.newPosX 
         StepTracker.oldPosY = StepTracker.newPosY  
     end
 end)
+
+--DISPLAY FRAME
+local infoDisplay = CreateFrame("Frame", "infoDisplay", UIParent, "BackdropTemplate")
+infoDisplay:SetSize(140, 40) 
+infoDisplay:SetPoint("CENTER")        -- position on screen
+infoDisplay:EnableMouse(true)
+infoDisplay:SetMovable(true)
+infoDisplay:SetClampedToScreen(true)
+
+--Display Moveable Script
+infoDisplay:SetScript("OnMouseDown", function(self, button)
+	self:StartMoving()
+end)
+infoDisplay:SetScript("OnMouseUp", function(self, button)
+	self:StopMovingOrSizing()
+end)
+
+
+--array containing background info.
+local backdrop = {
+    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", 
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", 
+    tile = true, tileSize = 32, edgeSize = 16, 
+    insets = { left = 4, right = 4, top = 4, bottom = 4 }
+}
+
+infoDisplay:SetBackdrop(backdrop)
+infoDisplay:SetBackdropBorderColor(1, 1, 1, 1)  -- pure white
+
+--CreateText
+local textFrame = infoDisplay:CreateFontString(nil, "Overlay", "GameFontNormal")
+textFrame:SetPoint("CENTER")
+textFrame:SetText("Penis!")
+
+--Determine Distance every 0.2 of a second
+C_Timer.NewTicker(0.2, function() 
+    --in function, if no change in distance has occured, skip display step section
+    --and reset check.. Otherwise, display steps.
+    calculateSteps()
+    if not StepTracker.isNoChange then
+        textFrame:SetText("Session Steps: " .. math.floor(StepTracker.stepsTotal))
+        --print("Session Steps: " .. math.floor(StepTracker.stepsTotal)) 
+        
+    end
+end)
+
+--[[
+-- Give it a visible background by creating new frame attached to Parent Frame
+local background = infoDisplay:CreateTexture(nil, "BACKGROUND")
+background:SetAllPoints(true)
+--background:SetColorTexture(0, 0, 0, 0.5)   -- RGBA, semi-transparent blue
+--infoDisplay:Hide()
+]]
 
 --Doing this will create errors since position:GetXY() returns two numbers (x and y), not a single string/number.
 --print("POSITION " .. position:GetXY())
