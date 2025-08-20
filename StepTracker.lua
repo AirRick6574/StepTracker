@@ -16,6 +16,7 @@
 --If character has chaged position, compared previous position to new position to determine change.
 --For X Determine if 
 
+
 --Variable Info 
 local StepTracker = {
     unitsPerStepWalking = 0.840456,
@@ -38,6 +39,7 @@ SLASH_DISPLAYPOS1 = "/getDistance" --command name
 SLASH_DISPLAYSTEPS1 = "/getSteps"
 SLASH_CALIBRATE1 = "/calibrate40" --command name 
 SLASH_CALCULATE1 = "/calculate" --command name 
+SLASH_RESET1 = "/reset" --command name 
 
 --Local Function to collect current Pos
 local function getCurrentPos()
@@ -79,7 +81,15 @@ local function calculateSteps()
     getCurrentPos()
     updatePOS()
     determineDistance()
-    determineSteps()
+    if not UnitOnTaxi("player") then
+        determineSteps()
+    end
+    
+    --Update Steps to Session. 
+    MyAddonData.totalSteps = MyAddonData.totalSteps + StepTracker.stepsCurrently
+
+
+    --Legacy Code (Possible Removable)
     if StepTracker.stepsCurrently == 0 then
         StepTracker.isNoChange = true
     else
@@ -98,6 +108,13 @@ local function printSteps()
 
     print("Steps in distance: " .. math.floor(StepTracker.stepsCurrently)) --rounds dowm
     print("TotalSteps in Session: " .. math.floor(StepTracker.stepsTotal)) --rounds dowm
+end
+
+
+local function resetSteps()
+    StepTracker.stepsCurrently = 0
+    StepTracker.stepsTotal = 0
+    MyAddonData.totalSteps = 0
 end
 
 -- Calibration: Determines distance for 40 yards 
@@ -143,6 +160,7 @@ SlashCmdList["DISPLAYPOS"] = determineDistance
 SlashCmdList["DISPLAYSTEPS"] = determineSteps
 SlashCmdList["CALIBRATE"] = calibrate40
 SlashCmdList["CALCULATE"] = printSteps
+SlashCmdList["RESET"] = resetSteps
 
 --diplays Hello PlayerName 
 --will not run until character is spawned in and program is intilized
@@ -159,11 +177,22 @@ f:SetScript("OnEvent", function(self, event, ...) --similar to contents in funct
         StepTracker.oldPosX = StepTracker.newPosX 
         StepTracker.oldPosY = StepTracker.newPosY  
     end
+
+    -- Access the saved variable
+    if not MyAddonData then
+        MyAddonData = {}
+    end
+
+    if not MyAddonData.totalSteps then
+        MyAddonData.totalSteps = 0
+    end
+
+    self:UnregisterEvent("ADDON_LOADED") -- only need it once
 end)
 
 --DISPLAY FRAME
 local infoDisplay = CreateFrame("Frame", "infoDisplay", UIParent, "BackdropTemplate")
-infoDisplay:SetSize(140, 40) 
+infoDisplay:SetSize(160, 60) 
 infoDisplay:SetPoint("CENTER")        -- position on screen
 infoDisplay:EnableMouse(true)
 infoDisplay:SetMovable(true)
@@ -190,9 +219,13 @@ infoDisplay:SetBackdrop(backdrop)
 infoDisplay:SetBackdropBorderColor(1, 1, 1, 1)  -- pure white
 
 --CreateText
-local textFrame = infoDisplay:CreateFontString(nil, "Overlay", "GameFontNormal")
-textFrame:SetPoint("CENTER")
-textFrame:SetText("Penis!")
+local SessiontextFrame = infoDisplay:CreateFontString(nil, "Overlay", "GameFontNormal")
+SessiontextFrame:SetPoint("CENTER", infoDisplay, "CENTER", 0, 10)  -- anchor near the top
+SessiontextFrame:SetText("Penis!")
+
+local FiletextFrame = infoDisplay:CreateFontString(nil, "Overlay", "GameFontNormal")
+FiletextFrame:SetPoint("CENTER", infoDisplay, "CENTER", 0, -10)  -- anchor near the top
+FiletextFrame:SetText("Penis!")
 
 --Determine Distance every 0.2 of a second
 C_Timer.NewTicker(0.2, function() 
@@ -200,7 +233,8 @@ C_Timer.NewTicker(0.2, function()
     --and reset check.. Otherwise, display steps.
     calculateSteps()
     if not StepTracker.isNoChange then
-        textFrame:SetText("Session Steps: " .. math.floor(StepTracker.stepsTotal))
+        SessiontextFrame:SetText("Session Steps: " .. math.floor(StepTracker.stepsTotal))
+        FiletextFrame:SetText("Total Steps: " .. math.floor(MyAddonData.totalSteps))
         --print("Session Steps: " .. math.floor(StepTracker.stepsTotal)) 
         
     end
