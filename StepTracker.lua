@@ -30,7 +30,8 @@ local StepTracker = {
     stepsCurrently = 0,
     stepsTotal = 0,
     currentDistance = 0,
-    isNoChange = false
+    isNoChange = false,
+    isTrackable = true
 }
 
 --REMEMBER FOR THE SYSTEM TO FIND THE COMMAND LINE, YOU HAVE TO BIND IT TO ITS VARIABLE NAME, NOT ITS VALUE
@@ -53,6 +54,12 @@ local function updatePOS()
     StepTracker.oldPosX = StepTracker.newPosX 
     StepTracker.oldPosY = StepTracker.newPosY 
     StepTracker.newPosX, StepTracker.newPosY = getCurrentPos()
+
+    --Checks if update is trackable
+    if StepTracker.newPosX == nil then 
+        return false -- couldn’t update (like in dungeons)
+    end
+    return true
 end
 
 --[[
@@ -78,23 +85,25 @@ end
 
 --call other methods to get steps and output 
 local function calculateSteps()
-    getCurrentPos()
-    updatePOS()
+    --getCurrentPos()
+    --Checks if not in overworld, will not track if in dungeon
+    if not updatePOS() then
+        return
+    end
     determineDistance()
+
+    --Check if Player is Flying
     if not UnitOnTaxi("player") then
-        determineSteps()
+        --Check if player is dead, will not calculate if player is dead or ghost
+        if not UnitIsDeadOrGhost("player") then
+            if not IsSwimming() then
+                determineSteps()
+            end
+        end   
     end
     
     --Update Steps to Session. 
     MyAddonData.totalSteps = MyAddonData.totalSteps + StepTracker.stepsCurrently
-
-
-    --Legacy Code (Possible Removable)
-    if StepTracker.stepsCurrently == 0 then
-        StepTracker.isNoChange = true
-    else
-        StepTracker.isNoChange = false
-    end
 end
 
 local function printSteps()
@@ -233,7 +242,11 @@ C_Timer.NewTicker(0.2, function()
     --and reset check.. Otherwise, display steps.
     calculateSteps()
     if not StepTracker.isNoChange then
-        SessiontextFrame:SetText("Session Steps: " .. math.floor(StepTracker.stepsTotal))
+        if StepTracker.newPosX ~= nil then
+            SessiontextFrame:SetText("Session Steps: " .. math.floor(StepTracker.stepsTotal))
+        else 
+            SessiontextFrame:SetText("Cannot Track here")
+        end
         FiletextFrame:SetText("Total Steps: " .. math.floor(MyAddonData.totalSteps))
         --print("Session Steps: " .. math.floor(StepTracker.stepsTotal)) 
         
