@@ -95,13 +95,11 @@ local function calculateSteps()
     --Check if Player is Flying
     if not UnitOnTaxi("player") then
         --Check if player is dead, will not calculate if player is dead or ghost
-        if not UnitIsDeadOrGhost("player") then
-            if not IsSwimming() then
-                determineSteps()
-                --Update Steps to Session. 
-                MyAddonData.totalSteps = MyAddonData.totalSteps + StepTracker.stepsCurrently
-            end
-        end   
+        if not UnitIsDeadOrGhost("player") and not IsSwimming() and not IsFalling() then
+            determineSteps()
+            --Update Steps to Session. 
+            MyAddonData.totalSteps = MyAddonData.totalSteps + StepTracker.stepsCurrently  
+        end
     end
     
     
